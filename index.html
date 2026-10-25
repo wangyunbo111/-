@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数字华容道｜解锁至9×9</title>
+<style>
+*{box-sizing:border-box;font-family:system-ui,sans-serif;margin:0;padding:0}
+body{
+  background: url("26.4 Snapshot 5.png") center / cover no-repeat fixed;
+  color:#fff;
+  padding:20px;
+  text-align:center;
+  min-height:100vh;
+  background-color:#222;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.55);
+  z-index:-1;
+}
+h1{margin-bottom:10px;text-shadow:0 2px 6px #000}
+.info{margin-bottom:16px;line-height:1.6;text-shadow:0 1px 4px #000}
+.btns{margin-bottom:16px}
+button{
+  padding:8px 14px;margin:4px;font-size:16px;border:none;border-radius:6px;
+  cursor:pointer;background:#415a77;color:#fff;
+}
+button:disabled{background:#222;color:#666;cursor:not-allowed}
+#board{
+  display:grid;gap:5px;margin:0 auto;width:fit-content;
+  background:rgba(20,20,20,0.75);padding:10px;border-radius:10px;
+}
+.cell{
+  width:62px;height:62px;background:#0f3460;color:#fff;
+  font-size:24px;font-weight:bold;display:grid;place-items:center;
+  border-radius:6px;cursor:pointer;user-select:none;
+  transition:0.12s transform;
+}
+.cell:hover:not(.empty){transform:scale(1.04)}
+.cell.empty{background:#111;color:#111;cursor:default;transform:none}
+.win-tip{font-size:22px;color:#4ade80;margin-top:12px;font-weight:bold;text-shadow:0 1px 4px #000}
+/* 下载按钮样式 */
+.download-area{
+  margin-top:30px;
+}
+.download-btn{
+  background-color:#288b47;
+  font-size:18px;
+  padding:10px 20px;
+}
+.download-btn:hover{
+  background-color:#1f7038;
+}
+</style>
+</head>
+<body>
+<h1>数字华容道</h1>
+<div class="info">
+  当前：<span id="sizeText">3×3</span>｜步数：<span id="step">0</span>
+  <br>解锁进度：<span id="lockInfo">已解锁：3×3</span>
+</div>
+<div class="btns" id="sizeBtns">
+</div>
+<button onclick="resetBoard()">重新打乱</button>
+<div id="board"></div>
+<div class="win-tip" id="winTip"></div>
+
+<!-- 新增：下载exe按钮 -->
+<div class="download-area">
+  <a href="Digital_Sliding_Puzzle.exe" download="Digital_Sliding_Puzzle.exe">
+    <button class="download-btn">📥 下载程序版（exe）</button>
+  </a>
+</div>
+
+<script>
+let unlock = new Set([3]);
+let currentSize = 3;
+let board = [];
+let emptyIdx = 0;
+let stepCount = 0;
+const MAX_SIZE = 9;
+
+const sizeBtns = document.getElementById('sizeBtns');
+const boardEl = document.getElementById('board');
+const stepEl = document.getElementById('step');
+const sizeTextEl = document.getElementById('sizeText');
+const lockInfoEl = document.getElementById('lockInfo');
+const winTipEl = document.getElementById('winTip');
+
+function renderSizeButtons(){
+  sizeBtns.innerHTML = '';
+  for(let s=3;s<=MAX_SIZE;s++){
+    const btn = document.createElement('button');
+    btn.textContent = s+'×'+s;
+    btn.disabled = !unlock.has(s);
+    btn.onclick = ()=>{
+      currentSize = s;
+      initBoard();
+    }
+    sizeBtns.appendChild(btn);
+  }
+  lockInfoEl.textContent = '已解锁：'+Array.from(unlock).map(x=>x+'×'+x).join('、');
+}
+
+function initBoard(){
+  winTipEl.textContent = '';
+  stepCount = 0;
+  stepEl.textContent = stepCount;
+  sizeTextEl.textContent = currentSize+'×'+currentSize;
+  const total = currentSize * currentSize;
+  board = [];
+  for(let i=1;i<total;i++) board.push(i);
+  board.push(0);
+  emptyIdx = total - 1;
+  shuffleBoard();
+  render();
+}
+
+function shuffleBoard(){
+  const shuffleTimes = currentSize * 100;
+  for(let i=0;i<shuffleTimes;i++){
+    const neighbors = getNeighbors(emptyIdx);
+    const r = neighbors[Math.floor(Math.random()*neighbors.length)];
+    swap(emptyIdx, r);
+    emptyIdx = r;
+  }
+}
+
+function getNeighbors(idx){
+  const n = currentSize;
+  const x = idx % n;
+  const y = Math.floor(idx / n);
+  const list = [];
+  if(y>0) list.push(idx - n);
+  if(y < n-1) list.push(idx + n);
+  if(x>0) list.push(idx - 1);
+  if(x < n-1) list.push(idx + 1);
+  return list;
+}
+
+function swap(a,b){
+  [board[a], board[b]] = [board[b], board[a]];
+}
+
+function clickCell(idx){
+  const near = getNeighbors(emptyIdx);
+  if(!near.includes(idx)) return;
+  swap(idx, emptyIdx);
+  emptyIdx = idx;
+  stepCount++;
+  stepEl.textContent = stepCount;
+  render();
+  checkWin();
+}
+
+function render(){
+  boardEl.style.gridTemplateColumns = `repeat(${currentSize},62px)`;
+  boardEl.innerHTML = '';
+  board.forEach((v,i)=>{
+    const div = document.createElement('div');
+    div.className = 'cell' + (v===0 ? ' empty' : '');
+    div.textContent = v || '';
+    div.onclick = ()=>clickCell(i);
+    boardEl.appendChild(div);
+  })
+}
+
+function checkWin(){
+  let ok = true;
+  const total = currentSize * currentSize;
+  for(let i=0;i<total-1;i++){
+    if(board[i] !== i+1){
+      ok = false;
+      break;
+    }
+  }
+  if(ok){
+    if(currentSize >= MAX_SIZE){
+      winTipEl.textContent = `🎉 恭喜通关 ${currentSize}×${currentSize}！已是最高难度！`;
+    }else{
+      const next = currentSize + 1;
+      winTipEl.textContent = `🎉 恭喜通关 ${currentSize}×${currentSize}！`;
+      if(!unlock.has(next)){
+        unlock.add(next);
+        setTimeout(()=>{
+          winTipEl.textContent += ` 已解锁 ${next}×${next}！`;
+          renderSizeButtons();
+        },500);
+      }
+    }
+  }
+}
+
+function resetBoard(){
+  initBoard();
+}
+
+renderSizeButtons();
+initBoard();
+</script>
+</body>
+</html>
